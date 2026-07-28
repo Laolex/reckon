@@ -2,10 +2,11 @@ package trading.gate
 
 import rego.v1
 
-# Mirrors /opt/trading-agents/core/kelly.py::size_position
+# A two-gate position-sizing policy of the kind an autonomous trading agent runs.
 # Gate A: abs(net_edge) < min_edge_threshold -> skip   [equity-independent]
 # Gate B: size_usd < min_order_size_usd      -> skip   [equity-dependent]
-# Thresholds come from data.config — the analogue of the env var that broke the HL replay.
+# Both thresholds are read from data.config, which is what puts them outside the
+# bundle's declared roots and therefore outside the record. That is the point.
 
 default decision := {"action": "skip", "gate": "unknown"}
 

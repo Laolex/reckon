@@ -7,8 +7,10 @@ python -m demo.opa_replay
 ## What the evidence is
 
 `evidence/opa-bundled2.log` is the decision log from a probe run against OPA v1.18.2 on
-2026-07-16, using the Rego policy in `evidence/policy.rego` — a transcription of a real
-position-sizing gate. It contains two decisions:
+2026-07-16, using the Rego policy in `evidence/policy.rego` — a two-gate position-sizing
+policy of the kind an autonomous trading agent runs, with both thresholds read from
+`data.config` and therefore from outside the bundle's declared roots. It contains two
+decisions:
 
 | decision | input | bundle revision | engine | result |
 |---|---|---|---|---|
@@ -16,6 +18,9 @@ position-sizing gate. It contains two decisions:
 | `468228f8` | `raw_edge=0.002`, `equity=5000` | `policy-v2-code-only` | 1.18.2 | **skip** |
 
 Identical input. Identical bundle revision. Identical engine version. Opposite decisions.
+
+The log is unmodified. The only edit to `policy.rego` since the probe ran is to its comment
+header, which referenced an internal file path; every rule is exactly as evaluated.
 
 Between them, `min_edge_threshold` was pushed through OPA's Data API — outside the bundle's
 provenance boundary. The bundle revision stayed accurate the whole time, and stayed useless,
