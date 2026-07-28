@@ -10,6 +10,7 @@ import json
 import sys
 from pathlib import Path
 
+from .execution import SDK_VERSION
 from .run import boundary, verify_run
 from .verify import CLASS_NAMES
 
@@ -21,6 +22,11 @@ def load(path: str) -> list[dict]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="reckon", description=__doc__)
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"reckon {SDK_VERSION} (RCDR v0.1)",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
 
     verify_cmd = sub.add_parser("verify", help="report the class a run supports")

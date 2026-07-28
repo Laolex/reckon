@@ -38,6 +38,15 @@ C0–C2 are deductive given capture. C3 is not deductive for anyone — past the
 is counterfactual inference, not replay. Reckon's honest top guarantee is: certify soundness
 through C2, and for C3 certify *where the evidence ends*.
 
+## Install
+
+```
+pip install reckon-rcdr
+```
+
+Python 3.11+, no runtime dependencies. The distribution is `reckon-rcdr`; the import name
+and the CLI command are both `reckon`.
+
 ## Use
 
 ```python
@@ -87,8 +96,14 @@ failure this whole project is named after.
 | `tests/` | every assertion traces to a requirement in the spec |
 
 ```
+pip install -e ".[dev]"
 python -m pytest
 ```
+
+## License
+
+Apache-2.0. Chosen over MIT for the express patent grant: RCDR is meant to be implemented
+by other people, and an implementer should not have to wonder about that.
 
 ## Scope
 

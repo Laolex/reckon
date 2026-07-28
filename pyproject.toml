@@ -1,15 +1,51 @@
 [project]
-name = "reckon"
-version = "0.1.0"
+name = "reckon-rcdr"
+dynamic = ["version"]
+description = "The capture layer for autonomous decisions — emit and verify replay-complete decision records (RCDR v0.1)"
+readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = [{ name = "Ola", email = "laolex55@gmail.com" }]
+keywords = ["replay", "audit", "provenance", "policy", "agents", "observability", "rcdr"]
 dependencies = []
 
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Software Development :: Quality Assurance",
+  "Topic :: System :: Logging",
+  "Typing :: Typed",
+]
+
+[project.urls]
+Homepage = "https://github.com/Laolex/reckon"
+Specification = "https://github.com/Laolex/reckon/blob/main/docs/RCDR-v0.1.md"
+Source = "https://github.com/Laolex/reckon"
+
+[project.scripts]
+reckon = "reckon.__main__:main"
+
 [project.optional-dependencies]
-dev = ["pytest>=8"]
+dev = ["pytest>=8", "build>=1.2", "twine>=5"]
 
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# One source of truth. The version is baked into every record's path_digest, so it
+# lives with the execution model rather than in packaging metadata.
+[tool.setuptools.dynamic]
+version = { attr = "reckon.execution.SDK_VERSION" }
+
+[tool.setuptools.package-data]
+reckon = ["py.typed"]
 
 [tool.pytest.ini_options]
 pythonpath = ["src", "."]
