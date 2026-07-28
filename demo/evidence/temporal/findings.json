@@ -1,0 +1,41 @@
+{
+  "A": {
+    "result": {
+      "action": "trade",
+      "fill": "filled 83.33",
+      "size": 83.33333333333333
+    },
+    "replay": "NondeterminismError: Workflow activation completion failed: Failure { failure: Some(Failure { message: \"[TMPRL1100] Nondeterminism error: Complete workflow machi",
+    "replay_decided": "skip",
+    "scan": {
+      "bytes": 6115,
+      "counts": {
+        "0.0025": 0,
+        "0.0015": 0,
+        "MIN_EDGE_THRESHOLD": 0,
+        "threshold": 0,
+        "net_edge": 0,
+        "0.002": 0
+      }
+    }
+  },
+  "B": {
+    "result": {
+      "action": "trade",
+      "size": 83.33333333333333
+    },
+    "replay": "REPLAY SUCCEEDED \u2014 no nondeterminism reported",
+    "replay_decided": "skip",
+    "scan": {
+      "bytes": 4002,
+      "counts": {
+        "0.0025": 0,
+        "0.0015": 0,
+        "MIN_EDGE_THRESHOLD": 0,
+        "threshold": 0,
+        "net_edge": 0,
+        "0.002": 0
+      }
+    }
+  }
+}

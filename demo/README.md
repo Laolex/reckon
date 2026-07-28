@@ -1,10 +1,11 @@
 # Demos
 
-Three, all over real probe artifacts rather than fixtures written to make a point.
+Four, all over real probe artifacts rather than fixtures written to make a point.
 
 ```
 python -m demo.opa_replay          # a record that could not say where its policy came from
 python -m demo.langgraph_replay    # a record that kept the reasoning and dropped the predicate
+python -m demo.temporal_replay     # a replay engine that cannot see its own divergence
 python -m demo.ablation            # does every field in the format earn its place?
 ```
 
@@ -113,7 +114,7 @@ decided nor the value it was compared against is anywhere in the record.
 > The record faithfully kept the reasoning that did not decide, and dropped the predicate
 > that did.
 
-This is the more common failure of the two. The OPA case needs an unusual deployment
+This is the more common failure. The OPA case needs an unusual deployment
 choice; this one needs only an environment variable and a checkpointer doing exactly what it
 was designed to do — persisting channel state, not the comparisons that produced it.
 
@@ -133,7 +134,65 @@ rather than a story told over the top of the evidence.
 
 ---
 
-# 3. Ablation — does every field earn its place?
+# 3. Temporal — the boundary of a replay guarantee
+
+```
+python -m demo.temporal_replay
+```
+
+## Why this is the hard case
+
+Temporal is not an observability tool that forgot something. Deterministic replay *is* the
+product: it replays workflow code against a recorded event history and raises
+`NondeterminismError` when the code diverges from the history. If any system's record were
+self-sufficient, it would be this one.
+
+## What the evidence is
+
+`evidence/temporal/` holds the probe (`probe.py`, `gate_config.py`), both event histories,
+and `findings.json`. The same decision was recorded under threshold `0.0015` and replayed
+under `0.0025`, twice, differing only in whether the decision crosses a **command boundary** —
+Temporal's unit of recorded action.
+
+| | history says | replayed code decided | Temporal reported |
+|---|---|---|---|
+| branch schedules an activity | trade | skip | `NondeterminismError` |
+| branch only changes the value | trade | skip | **nothing — replay succeeded** |
+
+Identical divergence. Caught once, silent once. What separates the two is not the decision
+or its importance — it is whether the decision happened to schedule an activity.
+
+The silent case is the one that matters. A decision that only changes a returned value is an
+approval flag, a payout amount, a risk score, a credit limit.
+
+Across both histories, `MIN_EDGE_THRESHOLD`, `0.0015`, `0.0025`, `threshold` and `net_edge`
+occur **zero** times.
+
+## The second half
+
+The history records `binaryChecksum` to identify the code that ran. **The same checksum
+produced both decisions**, because the threshold is not in the build.
+
+A component identity is not a path digest — exactly what OPA's bundle revision failed at, in
+a system built by different people for a different purpose. One instance is an anecdote; two
+independent mechanisms failing the same way is the non-compositionality claim.
+
+## Not a bug
+
+Temporal honours its guarantee exactly as specified: replaying the same run under the same
+code. It draws its correctness boundary at commands because commands are what durable
+execution has to get right. The boundary is principled — and it still lands in the wrong
+place for re-adjudicating a decision.
+
+## After
+
+Re-emitted through Reckon, the two evaluations simply disagree in the record:
+`compared=0.002` against `resolved=0.0015` admits, against `resolved=0.0025` rejects, with
+different path digests. Detecting the divergence no longer requires replaying anything.
+
+---
+
+# 4. Ablation — does every field earn its place?
 
 ```
 python -m demo.ablation
