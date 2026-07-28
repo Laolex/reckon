@@ -13,13 +13,21 @@ unanswerable, and because nothing in the record tells you it is unanswerable.
 Four systems were probed: OPA, LangGraph, and the decision logs of a live Hyperliquid and a
 live Polymarket agent. Every one produced records that looked sufficient and were not.
 
-The sharpest case is in [`demo/`](demo/). A sound policy engine, versioned bundles and a
-complete decision log still produced two decisions with **identical input, identical bundle
-revision and identical engine version that came out opposite ways** — and nothing in the
-record revealed which regime was in force.
+Two are reproducible here from the original probe artifacts, in [`demo/`](demo/):
+
+- **OPA.** A sound policy engine, versioned bundles and a complete decision log still
+  produced two decisions with **identical input, identical bundle revision and identical
+  engine version that came out opposite ways** — and nothing in the record revealed which
+  regime was in force.
+- **LangGraph.** Three threads, one identical persisted rationale, two different outcomes.
+  The threshold that separated them occurs in **zero of 12,286 persisted bytes**. The record
+  faithfully kept the reasoning that did not decide, and dropped the predicate that did.
 
 So: replay soundness is not compositional. It is a property of the whole execution path, not
 of the components in it. And no record carries its own soundness proof.
+
+The argument in full is in [`docs/SUBMISSION.md`](docs/SUBMISSION.md), including the
+non-goals and what would falsify it.
 
 ## Capability classes
 
@@ -91,8 +99,10 @@ failure this whole project is named after.
 | Path | |
 |---|---|
 | `docs/RCDR-v0.1.md` | the record format — the normative document |
+| `docs/SUBMISSION.md` | the argument: thesis, evidence, novelty, non-goals |
 | `src/reckon/` | emitter, verifier, run-level verifier, CLI |
-| `demo/` | the before/after arc over a real OPA decision log |
+| `demo/` | two before/after arcs over real probe artifacts, plus the ablation |
+| `demo/ABLATION.md` | which fields are load-bearing — generated, not asserted |
 | `tests/` | every assertion traces to a requirement in the spec |
 
 ```

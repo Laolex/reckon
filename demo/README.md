@@ -1,4 +1,19 @@
-# The OPA replay demo
+# Demos
+
+Three, all over real probe artifacts rather than fixtures written to make a point.
+
+```
+python -m demo.opa_replay          # a record that could not say where its policy came from
+python -m demo.langgraph_replay    # a record that kept the reasoning and dropped the predicate
+python -m demo.ablation            # does every field in the format earn its place?
+```
+
+Every claim below is asserted in `tests/`. If the arc is the argument, a regression in it is
+a regression in the argument.
+
+---
+
+# 1. OPA — provenance
 
 ```
 python -m demo.opa_replay
@@ -66,3 +81,68 @@ It also does not show recovery of decision semantics from an uninstrumented syst
 "before" mapping was written by hand, by someone who already knew what the answer was. That
 is out of scope by design (§6), and pretending otherwise would repeat the exact failure this
 format exists to name.
+
+---
+
+# 2. LangGraph — the missing predicate
+
+```
+python -m demo.langgraph_replay
+```
+
+## What the evidence is
+
+`evidence/langgraph-checkpoints.sqlite` is the checkpointer output of the agent in
+`evidence/langgraph_agent.py`, run on 2026-07-16 under three thread ids with different
+values of `LG_MIN_EDGE_THRESHOLD`. The shape is the one most agent systems actually have: a
+model produces evidence and a rationale, then code adjudicates that evidence against a
+threshold read from the environment.
+
+| thread | persisted rationale | outcome |
+|---|---|---|
+| `t1` | `ETH mispriced vs 4h mean; fair value 3006.00` | **skip** |
+| `t2` | `ETH mispriced vs 4h mean; fair value 3006.00` | **trade** |
+| `t3` | `ETH mispriced vs 4h mean; fair value 3006.00` | **skip** |
+
+One rationale. Two outcomes.
+
+Across all 12,286 bytes the checkpointer persisted, these occur **zero** times:
+`LG_MIN_EDGE_THRESHOLD`, `0.0025`, `0.0015`, `threshold`, `net_edge`. Neither the value that
+decided nor the value it was compared against is anywhere in the record.
+
+> The record faithfully kept the reasoning that did not decide, and dropped the predicate
+> that did.
+
+This is the more common failure of the two. The OPA case needs an unusual deployment
+choice; this one needs only an environment variable and a checkpointer doing exactly what it
+was designed to do — persisting channel state, not the comparisons that produced it.
+
+## Before
+
+Mapped into RCDR, all three threads verify at `Available: none` against a C1 request. There
+is no predicate structure to hash, no compared value, and no resolved policy.
+
+## After
+
+Re-emitted through the SDK with `provenance: environment` — an env-var threshold is not a
+defect to hide, it is a fact the record has to be able to state. The run verifies at C2.
+
+The load-bearing check is in `tests/test_demo_langgraph.py`: the re-emitted records
+reproduce **all three observed outcomes**. That is what makes the "after" a reconstruction
+rather than a story told over the top of the evidence.
+
+---
+
+# 3. Ablation — does every field earn its place?
+
+```
+python -m demo.ablation
+```
+
+Deletes each field from a record that supports C2 and re-runs the verifier. Output is
+[`ABLATION.md`](ABLATION.md). **10 of 13 fields are load-bearing.** The three that are not
+are named as decoration rather than defended, and `tests/test_ablation.py` fails if that set
+ever changes silently.
+
+A format is easy to pad. This is cheap to run only because §5.1 is a decision procedure, so
+"what breaks" is computed rather than argued.
