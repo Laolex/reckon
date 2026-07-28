@@ -10,7 +10,7 @@ import hashlib
 import platform
 from importlib.metadata import distributions
 
-SDK_VERSION = "0.1.0"
+SDK_VERSION = "0.1.1"
 
 _deps_digest_cache: str | None = None
 

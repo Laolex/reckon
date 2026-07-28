@@ -1,6 +1,35 @@
 # Changelog
 
-## 0.1.0 — 2026-07-28
+## 0.1.1 — 2026-07-28
+
+First published release. No API change from 0.1.0; the additions are evidence and
+documentation, which for this project is the substance rather than the packaging.
+
+### Evidence
+
+- **Temporal probe** (`demo/temporal_replay.py`). The hardest case for the thesis, since
+  deterministic replay is Temporal's product. The same decision recorded under one threshold
+  and replayed under another diverges identically in both cases, but is caught only when it
+  crosses a command boundary; when it merely changes a returned value, replay succeeds
+  silently while the replayed code decides the opposite. The history's `binaryChecksum` is
+  identical across both decisions, because the threshold is not in the build.
+- **LangGraph probe** (`demo/langgraph_replay.py`). Three threads, one identical persisted
+  rationale, two outcomes; the deciding threshold occurs in zero of 12,286 persisted bytes.
+  The re-emitted records reproduce all three observed outcomes.
+- **Ablation** (`demo/ablation.py` → `demo/ABLATION.md`). Each field deleted from a
+  C2-complete record and the verifier re-run: 10 of 13 fields are load-bearing, and the three
+  that are not are named rather than defended.
+
+### Docs
+
+- `docs/ARGUMENT.md` — the thesis stated narrowly, the evidence, the rr boundary, the
+  non-goals, and what would falsify the whole thing.
+- `docs/RCDR-v0.1.md` §3.1 separates **admissibility** from soundness: a class states what
+  the evidence supports, not what a system may do with it. Demotion only; never gate on
+  self-confidence; undeclared reversibility reads as irreversible.
+- `execution.pure` documented in §4.8, which §5.1 already relied on.
+
+## 0.1.0 — 2026-07-28 (unpublished)
 
 First release. Implements RCDR v0.1 (`docs/RCDR-v0.1.md`) end to end.
 
