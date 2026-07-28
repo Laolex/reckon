@@ -63,6 +63,10 @@ record, two different answers. Therefore a verifier reports a **capability class
 percentage. A percentage is a scalar over incommensurable things and manufactures exactly
 the false confidence this format exists to expose.
 
+Soundness deliberately says nothing about the consequences of acting on a replay. Whether an
+effect can be undone has no bearing on whether a replay is deductive. That is a separate
+relation, defined in §3.1.
+
 ---
 
 ## 3. Capability classes
@@ -102,6 +106,49 @@ for anyone. So the honest top guarantee is: *certify soundness through C2; for C
 where the evidence ends and hypothesis begins.* Inside a C3 counterfactual the divergence is
 a stain through the dependency graph, per counterfactual — not a global verdict and not a
 time horizon.
+
+---
+
+## 3.1 Admissibility — what a class licenses
+
+A class states what the evidence supports. It does not state what a system may do with it.
+Those are two relations, and this format keeps them apart:
+
+```
+soundness     = f(record, counterfactual class, execution model)   — computed by a verifier
+admissibility = g(soundness class, reversibility of the action)    — decided by the consumer
+```
+
+The rule:
+
+> **A replay may authorize an action only when it is deductive at the class that action
+> requires. Below that class a replay may inform but never authorize, and an irreversible
+> action is refused rather than downgraded.**
+
+| Available class | Reversible action | Irreversible action |
+|---|---|---|
+| C0 | Authorize re-execution of what happened | Authorize re-execution of what happened |
+| C1 | Authorize under a strictly tighter policy | Authorize under a strictly tighter policy |
+| C2 | Authorize under a looser policy | Authorize under a looser policy |
+| C3 | **Inform** — may propose, rank or prefill; a human or a deterministic gate decides | **Refuse** — no authorization path exists; the output is hypothesis |
+| Below the requested class | Inform, and report the missing evidence | Refuse |
+
+Two properties are load-bearing:
+
+- **Demotion only.** Nothing may raise the admissible class — not a capture heuristic, and not
+  a model's stated confidence. Evidence can be missing; it cannot be inferred into existence.
+  This is the consuming-side form of the claim that no record carries its own soundness proof.
+- **Never gate on self-confidence.** The inputs to `g` are the verifier's class and the action's
+  reversibility. A confidence score is the quantity that most resembles evidence without being
+  evidence — the consuming-side twin of the percentage §2 refuses to emit.
+
+**Reversibility** is declared by the host system, not derived by RCDR. An action is *reversible*
+if its effect can be undone by the same system, without a counterparty's consent, within a
+stated window. Everything else is *irreversible*, including effects that are nominally undoable
+but whose observation is not — a sent message, a published price, a released payout. An
+unlabeled action is irreversible, for the same reason an unestablished provenance is `unknown`
+and an unestablished candidate set is `taken_only`: every unknown in this format resolves toward
+less claimed capability.
 
 ---
 
@@ -279,6 +326,8 @@ C3  ⟸  never certified.
   harder problem, deliberately out of scope.
 - **No claim that C3 is achievable.** Any implementation that reports a C3 certification is
   non-conforming.
+- **No classification of reversibility.** §3.1 consumes it; this format never infers it. The
+  host declares which of its actions are reversible, and anything undeclared is irreversible.
 
 ---
 
@@ -355,3 +404,7 @@ insufficiency, and names the one field that would fix it.
   per-decision classes are the only meaningful unit. Currently per-decision.
 - Whether `reads`/`writes` digests are sufficient to locate the C3 boundary, or whether the
   consuming predicate must be named explicitly at read time.
+- Whether `reversibility` should become a declared field on the outcome object, so a run
+  carries the input to §3.1's `g` instead of relying on the consumer to supply it out of band.
+  Left out of v0.1 deliberately: the field is cheap to add and expensive to get wrong, and no
+  probe evidence yet indicates which way it should go.
