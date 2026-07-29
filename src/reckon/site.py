@@ -278,6 +278,17 @@ def _short(seal: str, keep: int = 10) -> str:
     return f"{algo}:{body[:keep]}\u2026"
 
 
+def _n(count: int, singular: str, plural: str | None = None) -> str:
+    """`3 agents` / `1 agent`. Inline ternaries in template strings got this wrong
+    twice, so the agreement lives in one place."""
+    word = singular if count == 1 else (plural or singular + "s")
+    return f"{count} {word}"
+
+
+def _is(count: int) -> str:
+    return "is" if count == 1 else "are"
+
+
 def _when(stamp: str | None) -> str:
     """Timestamps to the second. Sub-second precision is noise on a page, and the
     full-precision value stays in the downloadable record where it belongs."""
@@ -389,7 +400,7 @@ def registry_page(bundles: list[AgentBundle]) -> str:
     return f"""
 <header>
   <div class="eyebrow">The registry</div>
-  <h1>{len(bundles)} agent{"" if len(bundles) == 1 else "s"} on the record</h1>
+  <h1>{_n(len(bundles), "agent")} on the record</h1>
 </header>
 <div class="prose">
   <p>Each row is an append-only ledger. A commitment enters it sealed, before its
@@ -397,8 +408,8 @@ def registry_page(bundles: list[AgentBundle]) -> str:
   was the obligation met, and did the outcome arrive. Those are different questions,
   and keeping them apart is the entire point — an agent that got a good result without
   doing the work it promised earns nothing here.</p>
-  <p>There are <strong>{total_open}</strong> commitments currently open across the
-  registry. <a href="open.html">See the board.</a></p>
+  <p>There {_is(total_open)} <strong>{_n(total_open, "commitment")}</strong> currently
+  open across the registry. <a href="open.html">See the board.</a></p>
 </div>
 <section>
   <h2>Ledgers</h2>
@@ -487,11 +498,12 @@ def credential_page(b: AgentBundle) -> str:
 
     unopened_note = ""
     if c.unopened:
+        subject = "Its contents are" if c.unopened == 1 else "Their contents are"
         unopened_note = (
-            f'<p class="note">{c.unopened} further commitment'
-            f'{"" if c.unopened == 1 else "s"} {"is" if c.unopened == 1 else "are"} '
-            "sealed and not yet disclosed. Their contents are unknown even to this "
-            "site — only the seal and the moment it was written are on the record.</p>"
+            f'<p class="note">{_n(c.unopened, "further commitment")} '
+            f"{_is(c.unopened)} sealed and not yet disclosed. {subject} unknown even "
+            "to this site — only the seal and the moment it was written are on the "
+            "record.</p>"
         )
 
     return f"""
@@ -729,16 +741,15 @@ def open_page(bundles: list[AgentBundle]) -> str:
     return f"""
 <header>
   <div class="eyebrow">Open board</div>
-  <h1>{len(pending)} commitment{"" if len(pending) == 1 else "s"} awaiting judgement</h1>
+  <h1>{_n(len(pending), "commitment")} awaiting judgement</h1>
 </header>
 <div class="prose">
   <p>Forward-looking, which is the only honest way to read a track record. Every line
   below was sealed before its outcome was known and has not yet been resolved — so
   nobody, including us, knows how it turns out.</p>
-  <p>A further <strong>{sealed_total}</strong> commitment{"" if sealed_total == 1 else "s"}
-  {"is" if sealed_total == 1 else "are"} sealed but not disclosed, and so cannot be
-  listed here at all.</p>
-  {f"<p>{excluded} ledger{'' if excluded == 1 else 's'} " + ("is" if excluded == 1 else "are") + " left out of this board entirely, because " + ("its" if excluded == 1 else "their") + " chain is broken. Nothing read from a record with a hole in it belongs on a page about what happens next.</p>" if excluded else ""}
+  <p>A further <strong>{_n(sealed_total, "commitment")}</strong> {_is(sealed_total)}
+  sealed but not disclosed, and so cannot be listed here at all.</p>
+  {f'<p>{_n(excluded, "ledger")} {_is(excluded)} left out of this board entirely, because {"its" if excluded == 1 else "their"} chain is broken. Nothing read from a record with a hole in it belongs on a page about what happens next.</p>' if excluded else ""}
 </div>
 <section>
   <h2>Open, sorted by horizon</h2>

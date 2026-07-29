@@ -206,3 +206,42 @@ def test_an_empty_ledger_directory_still_produces_a_usable_site(tmp_path):
     build(str(d), str(out))
     assert "0 agents on the record" in read(out, "index.html")
     assert (out / "verify.html").exists()
+
+
+def test_counts_agree_with_their_nouns(ledgers, tmp_path):
+    """This wording was wrong twice ("There are 1 commitments", "1 ... Their contents"),
+    so the agreement is pinned rather than eyeballed."""
+    out = build_site(ledgers, tmp_path)
+    for path in out.rglob("*.html"):
+        text = re.sub(r"<[^>]+>", " ", path.read_text(encoding="utf-8"))
+        text = re.sub(r"\s+", " ", text)
+        # Only the nouns this generator actually pluralises — a blanket \w+s rule
+        # trips over words that simply end in s, such as "Completeness".
+        nouns = "commitment|agent|ledger|seal|record|file|verdict"
+        for match in re.finditer(rf"\b1 ({nouns})s\b", text):
+            assert False, f"{path.name}: {match.group()!r}"
+        for match in re.finditer(rf"\bThere are 1\b|\b1 (?:{nouns})\w* are\b", text):
+            assert False, f"{path.name}: {match.group()!r}"
+
+
+def test_the_plural_helper_agrees():
+    from reckon.site import _is, _n
+
+    assert _n(1, "agent") == "1 agent"
+    assert _n(0, "agent") == "0 agents"
+    assert _n(3, "agent") == "3 agents"
+    assert _n(1, "ledger") == "1 ledger"
+    assert (_is(1), _is(0), _is(2)) == ("is", "are", "are")
+
+
+def test_a_one_agent_registry_reads_as_singular(tmp_path):
+    """The two-agent fixture cannot catch an agreement bug, so this builds with one."""
+    d = tmp_path / "ledgers"
+    d.mkdir()
+    Ledger(JsonlSink(d / "solo.jsonl"), agent="solo").commit(
+        a_commitment("solo", "x-0"))
+    out = tmp_path / "site"
+    build(str(d), str(out))
+    index = read(out, "index.html")
+    assert "1 agent on the record" in index
+    assert "1 agents" not in index
