@@ -65,10 +65,55 @@ def test_credential_exits_nonzero_when_the_chain_is_broken(tmp_path, capsys):
     with open(path, "a") as fh:
         fh.write(json.dumps({"kind": "decline", "agent": "helios-3", "seq": 5,
                              "prev_hash": "sha256:wrong", "reason": "x"}) + "\n")
-    capsys.readouterr()  # drop the "sealed c-1" line from the seal above
+    capsys.readouterr()  # drop the commit confirmation printed above
     code = main(["credential", "--ledger", path, "--json"])
     assert code == 1
     assert json.loads(capsys.readouterr().out)["integrity"]["intact"] is False
+
+
+def commitment_args(path, cid, *, statement="submit 10 qualifying applications"):
+    return [
+        "--ledger", path, "--agent", "helios-3", "--id", cid,
+        "--objective", "increase treasury yield",
+        "--obligation", statement,
+        "--evidence-class", "B",
+        "--evidence-source", "portal confirmations",
+        "--obligation-criteria", "10 or more confirmed",
+        "--outcome-criteria", "at least one award",
+        "--horizon", "2026-09-01T00:00:00Z",
+        "--source", "grants.example.org",
+    ]
+
+
+def test_seal_then_reveal_round_trips_through_the_cli(tmp_path):
+    path = str(tmp_path / "helios-3.jsonl")
+    assert main(["seal"] + commitment_args(path, "c-1")) == 0
+    sealed = [json.loads(l) for l in open(path)][0]
+    assert sealed["kind"] == "sealed_commitment"
+    assert "objective" not in sealed  # the payload is not disclosed yet
+
+    assert main(["reveal"] + commitment_args(path, "c-1")) == 0
+    assert main(["credential", "--ledger", path, "--json"]) == 0
+
+
+def test_an_unopened_seal_shows_up_on_the_credential(tmp_path, capsys):
+    path = str(tmp_path / "helios-3.jsonl")
+    main(["seal"] + commitment_args(path, "c-1"))
+    main(["seal"] + commitment_args(path, "c-2"))
+    main(["reveal"] + commitment_args(path, "c-1"))
+    capsys.readouterr()
+    assert main(["credential", "--ledger", path, "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["unopened"] == 1
+
+
+def test_revealing_a_payload_that_was_never_sealed_fails_the_credential(tmp_path, capsys):
+    path = str(tmp_path / "helios-3.jsonl")
+    main(["seal"] + commitment_args(path, "c-1"))
+    main(["reveal"] + commitment_args(path, "c-1", statement="submit 3 applications"))
+    capsys.readouterr()
+    assert main(["credential", "--ledger", path, "--json"]) == 1
+    report = json.loads(capsys.readouterr().out)["integrity"]
+    assert report["unmatched_reveals"] == ["c-1"]
 
 
 def test_serve_is_registered_and_takes_a_port(tmp_path, monkeypatch):

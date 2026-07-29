@@ -26,6 +26,39 @@ def load(path: str) -> list[dict]:
     return [json.loads(line) for line in lines if line.strip()]
 
 
+def _commitment_arguments(parser: argparse.ArgumentParser) -> None:
+    """The full commitment payload. `seal` and `reveal` take the same fields because
+    the agent must hold the payload between the two halves — the ledger never does."""
+    parser.add_argument("--ledger", required=True)
+    parser.add_argument("--agent", required=True)
+    parser.add_argument("--id", required=True, dest="cid")
+    parser.add_argument("--objective", required=True)
+    parser.add_argument("--obligation", required=True)
+    parser.add_argument("--evidence-class", required=True, choices=EVIDENCE_CLASSES)
+    parser.add_argument("--evidence-source", required=True)
+    parser.add_argument("--obligation-criteria", required=True)
+    parser.add_argument("--outcome-criteria", required=True)
+    parser.add_argument("--horizon", required=True)
+    parser.add_argument("--source", action="append", default=[], dest="sources")
+
+
+def _commitment_from(args: argparse.Namespace) -> Commitment:
+    return Commitment(
+        agent=args.agent,
+        objective=args.objective,
+        obligation=Obligation(
+            statement=args.obligation,
+            evidence_class=args.evidence_class,
+            evidence_source=args.evidence_source,
+        ),
+        obligation_criteria=args.obligation_criteria,
+        outcome_criteria=args.outcome_criteria,
+        horizon=args.horizon,
+        sources=args.sources,
+        commitment_id=args.cid,
+    )
+
+
 def open_ledger(path: str, agent: str) -> Ledger:
     """Resume sequence and chain from an existing file, or start at genesis.
 
@@ -68,18 +101,16 @@ def main(argv: list[str] | None = None) -> int:
     boundary_cmd.add_argument("--decision", required=True, help="the decision to flip")
     boundary_cmd.add_argument("--json", action="store_true")
 
-    commit_cmd = sub.add_parser("commit", help="seal a commitment into a ledger")
-    commit_cmd.add_argument("--ledger", required=True)
-    commit_cmd.add_argument("--agent", required=True)
-    commit_cmd.add_argument("--id", required=True, dest="cid")
-    commit_cmd.add_argument("--objective", required=True)
-    commit_cmd.add_argument("--obligation", required=True)
-    commit_cmd.add_argument("--evidence-class", required=True, choices=EVIDENCE_CLASSES)
-    commit_cmd.add_argument("--evidence-source", required=True)
-    commit_cmd.add_argument("--obligation-criteria", required=True)
-    commit_cmd.add_argument("--outcome-criteria", required=True)
-    commit_cmd.add_argument("--horizon", required=True)
-    commit_cmd.add_argument("--source", action="append", default=[], dest="sources")
+    commit_cmd = sub.add_parser("commit", help="write a commitment in the clear")
+    _commitment_arguments(commit_cmd)
+
+    seal_cmd = sub.add_parser(
+        "seal", help="write only the seal; open it later with `reveal`"
+    )
+    _commitment_arguments(seal_cmd)
+
+    reveal_cmd = sub.add_parser("reveal", help="open a previously sealed commitment")
+    _commitment_arguments(reveal_cmd)
 
     decline_cmd = sub.add_parser("decline", help="record that no commitment was made")
     decline_cmd.add_argument("--ledger", required=True)
@@ -105,23 +136,18 @@ def main(argv: list[str] | None = None) -> int:
 
     args = parser.parse_args(argv)
 
-    if args.command == "commit":
+    if args.command in ("commit", "seal", "reveal"):
         ledger = open_ledger(args.ledger, args.agent)
-        ledger.commit(Commitment(
-            agent=args.agent,
-            objective=args.objective,
-            obligation=Obligation(
-                statement=args.obligation,
-                evidence_class=args.evidence_class,
-                evidence_source=args.evidence_source,
-            ),
-            obligation_criteria=args.obligation_criteria,
-            outcome_criteria=args.outcome_criteria,
-            horizon=args.horizon,
-            sources=args.sources,
-            commitment_id=args.cid,
-        ))
-        print(f"sealed {args.cid}")
+        commitment = _commitment_from(args)
+        if args.command == "commit":
+            ledger.commit(commitment)
+            print(f"committed {args.cid} in the clear")
+        elif args.command == "seal":
+            record = ledger.seal_only(commitment)
+            print(f"sealed {record['seal']} at seq {record['seq']}")
+        else:
+            ledger.reveal(commitment)
+            print(f"revealed {args.cid}")
         return 0
 
     if args.command == "decline":

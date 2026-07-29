@@ -60,15 +60,24 @@ def render(credential: Credential) -> str:
         evidence = _rows([(f"Class {name}", count)
                           for name, count in credential.evidence_mix.items()])
         counts = _rows([
-            ("Commitments sealed", credential.commitments),
+            ("Commitments on the record", credential.commitments),
             ("Declined openly", credential.declines),
+            ("Sealed, never opened", credential.unopened),
             ("Resolved", credential.resolved),
             ("Still open", credential.unresolved),
             ("Completeness", credential.completeness),
         ])
+        unopened_note = ""
+        if credential.unopened:
+            unopened_note = (
+                "<p>Seals written and never opened are counted above. They are the "
+                "reason a good record here cannot be assembled by sealing many "
+                "commitments and opening only the ones that worked.</p>"
+            )
         body = (
             '<p class="good">Record intact since genesis.</p>'
             f"<table><tr><th>Activity</th><th>Count</th></tr>{counts}</table>"
+            f"{unopened_note}"
             "<table><tr><th>Obligation and outcome</th><th>Count</th></tr>"
             f"{cells}</table>"
             "<table><tr><th>Evidence class</th><th>Count</th></tr>"

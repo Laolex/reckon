@@ -18,6 +18,9 @@ class Credential:
     genesis: str | None
     commitments: int
     declines: int
+    sealed: int
+    revealed: int
+    unopened: int
     resolved: int
     unresolved: int
     cells: dict[str, int]
@@ -31,6 +34,9 @@ class Credential:
             "genesis": self.genesis,
             "commitments": self.commitments,
             "declines": self.declines,
+            "sealed": self.sealed,
+            "revealed": self.revealed,
+            "unopened": self.unopened,
             "resolved": self.resolved,
             "unresolved": self.unresolved,
             "cells": self.cells,
@@ -47,13 +53,19 @@ def project(records: list[dict]) -> Credential:
 
     agent = records[0]["agent"] if records else ""
     genesis = records[0].get("recorded_at") if records else None
-    commitments = declines = resolved = 0
+    commitments = declines = sealed = revealed = resolved = 0
 
     for record in records:
         kind = record.get("kind")
-        if kind == "commitment":
+        # A commitment written in the clear and one opened from a seal are the same
+        # thing to a reader — both disclose their payload, so both are classifiable.
+        if kind in ("commitment", "reveal"):
             commitments += 1
             evidence_mix[record["obligation"]["evidence_class"]] += 1
+            if kind == "reveal":
+                revealed += 1
+        elif kind == "sealed_commitment":
+            sealed += 1
         elif kind == "decline":
             declines += 1
         elif kind == "resolution":
@@ -72,6 +84,9 @@ def project(records: list[dict]) -> Credential:
         genesis=genesis,
         commitments=commitments,
         declines=declines,
+        sealed=sealed,
+        revealed=revealed,
+        unopened=sealed - revealed,
         resolved=resolved,
         unresolved=commitments - resolved,
         cells=cells,

@@ -51,6 +51,16 @@ class Ledger:
         self._own(commitment)
         return self.append(commitment.to_dict())
 
+    def seal_only(self, commitment: Commitment) -> dict:
+        """Write the commit half. The payload stays with the agent until reveal."""
+        self._own(commitment)
+        return self.append(commitment.to_sealed_dict())
+
+    def reveal(self, commitment: Commitment) -> dict:
+        """Open a previously sealed commitment. The seal is recomputed, not copied."""
+        self._own(commitment)
+        return self.append(commitment.to_reveal_dict())
+
     def decline(self, *, reason: str) -> dict:
         if not reason.strip():
             raise ValueError("decline requires a reason — a blank decline is a gap")

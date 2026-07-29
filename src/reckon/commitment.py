@@ -80,3 +80,17 @@ class Commitment:
         payload = self._sealed_payload()
         payload.update({"kind": "commitment", "agent": self.agent, "seal": self.seal()})
         return payload
+
+    def to_sealed_dict(self) -> dict:
+        """The commit half of commit-reveal: the seal and nothing else.
+
+        Deliberately opaque. What it does disclose is the one thing that cannot be
+        added afterwards — that a commitment of *some* shape existed at this point in
+        the sequence. The ledger stamps the time; the payload arrives later.
+        """
+        return {"kind": "sealed_commitment", "seal": self.seal()}
+
+    def to_reveal_dict(self) -> dict:
+        payload = self._sealed_payload()
+        payload.update({"kind": "reveal", "agent": self.agent, "seal": self.seal()})
+        return payload

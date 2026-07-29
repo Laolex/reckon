@@ -45,8 +45,8 @@ def test_a_broken_record_reports_no_figures():
 def test_a_broken_record_publishes_none_of_the_credential_figures():
     """A number beside a warning is still a number, and readers keep the number."""
     html = render(build(broken=True))
-    for label in ("Commitments sealed", "Declined openly", "Resolved",
-                  "Class A", "Luck"):
+    for label in ("Commitments on the record", "Declined openly", "Resolved",
+                  "Sealed, never opened", "Class A", "Luck"):
         assert label not in html, label
 
 
