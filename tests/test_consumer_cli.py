@@ -71,6 +71,19 @@ def test_credential_exits_nonzero_when_the_chain_is_broken(tmp_path, capsys):
     assert json.loads(capsys.readouterr().out)["integrity"]["intact"] is False
 
 
+def test_serve_is_registered_and_takes_a_port(tmp_path, monkeypatch):
+    called = {}
+
+    def fake_serve(ledger_path, port=8799):
+        called["path"] = ledger_path
+        called["port"] = port
+
+    monkeypatch.setattr("reckon.page.serve", fake_serve)
+    path, _ = seal_one(tmp_path)
+    assert main(["serve", "--ledger", path, "--port", "8123"]) == 0
+    assert called == {"path": path, "port": 8123}
+
+
 def test_the_original_verify_command_still_works(tmp_path, capsys):
     """The consumer subcommands must not disturb the existing verifier CLI."""
     run = tmp_path / "run.jsonl"

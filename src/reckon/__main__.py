@@ -99,6 +99,10 @@ def main(argv: list[str] | None = None) -> int:
     cred_cmd.add_argument("--ledger", required=True)
     cred_cmd.add_argument("--json", action="store_true")
 
+    serve_cmd = sub.add_parser("serve", help="serve the credential page locally")
+    serve_cmd.add_argument("--ledger", required=True)
+    serve_cmd.add_argument("--port", type=int, default=8799)
+
     args = parser.parse_args(argv)
 
     if args.command == "commit":
@@ -131,6 +135,14 @@ def main(argv: list[str] | None = None) -> int:
         resolution = Resolution(args.cid, args.obligation, args.outcome, evidence)
         ledger.append(resolution.to_dict())
         print(f"{args.cid}: {resolution.cell()}")
+        return 0
+
+    if args.command == "serve":
+        # Imported here so the module attribute is what gets called, which is what
+        # a monkeypatch in the tests can replace.
+        from . import page
+
+        page.serve(args.ledger, port=args.port)
         return 0
 
     if args.command == "credential":
