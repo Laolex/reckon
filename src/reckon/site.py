@@ -366,19 +366,26 @@ def registry_page(bundles: list[AgentBundle]) -> str:
         rows = ""
         for b in bundles:
             c = b.credential
-            broken = "" if c.integrity.intact else ' class="status-bad"'
+            if c.integrity.intact:
+                def cell(n: int) -> str:
+                    return f'<td class="right">{n}</td>' if n else \
+                           '<td class="right zero">0</td>'
+                figures = (cell(c.commitments) + cell(c.unopened) + cell(c.declines)
+                           + f"<td>{_e(c.completeness)}</td>")
+            else:
+                # A broken record publishes no counts here either. Showing them beside
+                # the warning is how a reader ends up remembering the number.
+                figures = '<td class="right zero">—</td>' * 3 + '<td class="zero">—</td>'
             rows += (
                 f"<tr>"
                 f'<td><a href="a/{_e(b.slug)}/index.html">{_e(b.agent)}</a></td>'
-                f"<td{broken}>{_status(c.integrity)}</td>"
-                f'<td class="right">{c.commitments}</td>'
-                f'<td class="right">{c.unopened or "<span class=zero>0</span>"}</td>'
-                f'<td class="right">{c.declines or "<span class=zero>0</span>"}</td>'
-                f"<td>{_e(c.completeness)}</td>"
+                f"<td>{_status(c.integrity)}</td>"
+                f"{figures}"
                 f"</tr>"
             )
 
-    total_open = sum(len(b.view.open_commitments) for b in bundles)
+    sound = [b for b in bundles if b.credential.integrity.intact]
+    total_open = sum(len(b.view.open_commitments) for b in sound)
     return f"""
 <header>
   <div class="eyebrow">The registry</div>
@@ -697,7 +704,9 @@ def ledger_page(b: AgentBundle) -> str:
 def open_page(bundles: list[AgentBundle]) -> str:
     rows = ""
     pending = []
-    for b in bundles:
+    sound = [b for b in bundles if b.credential.integrity.intact]
+    excluded = len(bundles) - len(sound)
+    for b in sound:
         for item in b.view.open_commitments:
             pending.append((item.horizon, b, item))
     pending.sort(key=lambda t: t[0])
@@ -716,7 +725,7 @@ def open_page(bundles: list[AgentBundle]) -> str:
     if not rows:
         rows = '<tr><td colspan="5" class="zero">Nothing open right now.</td></tr>'
 
-    sealed_total = sum(b.credential.unopened for b in bundles)
+    sealed_total = sum(b.credential.unopened for b in sound)
     return f"""
 <header>
   <div class="eyebrow">Open board</div>
@@ -729,6 +738,7 @@ def open_page(bundles: list[AgentBundle]) -> str:
   <p>A further <strong>{sealed_total}</strong> commitment{"" if sealed_total == 1 else "s"}
   {"is" if sealed_total == 1 else "are"} sealed but not disclosed, and so cannot be
   listed here at all.</p>
+  {f"<p>{excluded} ledger{'' if excluded == 1 else 's'} " + ("is" if excluded == 1 else "are") + " left out of this board entirely, because " + ("its" if excluded == 1 else "their") + " chain is broken. Nothing read from a record with a hole in it belongs on a page about what happens next.</p>" if excluded else ""}
 </div>
 <section>
   <h2>Open, sorted by horizon</h2>

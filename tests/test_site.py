@@ -119,8 +119,34 @@ def test_an_unopened_seal_is_never_disclosed(ledgers, tmp_path):
 def test_the_open_board_lists_nothing_that_is_already_resolved(ledgers, tmp_path):
     out = build_site(ledgers, tmp_path)
     board = read(out, "open.html")
-    assert "c-0" not in board          # resolved
-    assert "s-0" in board or "s-2" in board  # selene's are unresolved
+    assert "c-0" not in board  # resolved, so not awaiting judgement
+
+
+def test_the_open_board_excludes_broken_ledgers_and_says_so(ledgers, tmp_path):
+    """selene-1's chain has a hole; nothing read from it belongs on a forward-looking
+    page, and the reader is told a ledger was left out rather than silently dropped."""
+    out = build_site(ledgers, tmp_path)
+    board = read(out, "open.html")
+    assert "s-0" not in board
+    assert "s-2" not in board
+    assert "chain is broken" in board
+    assert "1 ledger is left out" in board
+
+
+def test_the_registry_publishes_no_counts_for_a_broken_ledger(ledgers, tmp_path):
+    """Same rule as the credential page: no figures beside a warning."""
+    out = build_site(ledgers, tmp_path)
+    page = read(out, "index.html")
+    rows = {}
+    for row in re.findall(r"<tr>(?:(?!</tr>).)*</tr>", page, re.S):
+        for agent in ("helios-3", "selene-1"):
+            if f">{agent}</a>" in row:
+                rows[agent] = row
+
+    assert "Record broken" in rows["selene-1"]
+    assert not re.search(r">\s*\d+\s*<", rows["selene-1"]), rows["selene-1"]
+    assert "Record intact" in rows["helios-3"]
+    assert re.search(r">\s*\d+\s*<", rows["helios-3"]), rows["helios-3"]
 
 
 def test_stub_pages_are_marked_and_carry_no_unlabelled_figures(ledgers, tmp_path):
