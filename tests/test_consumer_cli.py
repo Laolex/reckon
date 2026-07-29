@@ -136,3 +136,16 @@ def test_the_original_verify_command_still_works(tmp_path, capsys):
     code = main(["verify", str(run), "--class", "C0", "--json"])
     capsys.readouterr()
     assert code in (0, 1)
+
+
+def test_build_site_writes_a_site_from_a_ledger_directory(tmp_path, capsys):
+    ledgers = tmp_path / "ledgers"
+    ledgers.mkdir()
+    path = str(ledgers / "helios-3.jsonl")
+    main(["commit"] + commitment_args(path, "c-1"))
+    capsys.readouterr()
+    out = tmp_path / "site"
+    assert main(["build-site", "--ledgers", str(ledgers), "--out", str(out)]) == 0
+    assert "wrote" in capsys.readouterr().out
+    assert (out / "index.html").exists()
+    assert (out / "a/helios-3/index.html").exists()

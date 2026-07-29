@@ -130,6 +130,12 @@ def main(argv: list[str] | None = None) -> int:
     cred_cmd.add_argument("--ledger", required=True)
     cred_cmd.add_argument("--json", action="store_true")
 
+    site_cmd = sub.add_parser(
+        "build-site", help="render a directory of ledgers into a standalone static site"
+    )
+    site_cmd.add_argument("--ledgers", required=True, help="directory of *.jsonl ledgers")
+    site_cmd.add_argument("--out", required=True, help="directory to write the site into")
+
     serve_cmd = sub.add_parser("serve", help="serve the credential page locally")
     serve_cmd.add_argument("--ledger", required=True)
     serve_cmd.add_argument("--port", type=int, default=8799)
@@ -161,6 +167,13 @@ def main(argv: list[str] | None = None) -> int:
         resolution = Resolution(args.cid, args.obligation, args.outcome, evidence)
         ledger.append(resolution.to_dict())
         print(f"{args.cid}: {resolution.cell()}")
+        return 0
+
+    if args.command == "build-site":
+        from .site import build as build_site
+
+        written = build_site(args.ledgers, args.out)
+        print(f"wrote {len(written)} files to {args.out}")
         return 0
 
     if args.command == "serve":
