@@ -46,12 +46,41 @@ class Discrimination:
     distinguishing: list[str] = field(default_factory=list)
     only_in_compliant: list[str] = field(default_factory=list)
     only_in_violating: list[str] = field(default_factory=list)
+    conclusion_differs: bool = False
 
     @property
     def separable(self) -> bool:
+        """Whether the EVIDENCE separates the pair. The conclusion does not count.
+
+        Letting the recorded outcome count as separation makes every pair trivially
+        testable: a record holding nothing but `{input, outcome}` with identical
+        inputs and opposite outcomes would certify, when it is the exact record that
+        proves nothing about why. That is the OPA shape, and an earlier version of
+        this module reported it separable — the failure this module exists to detect,
+        reintroduced inside the module.
+        """
         return bool(self.distinguishing or self.only_in_compliant or self.only_in_violating)
 
+    @property
+    def unexplained_flip(self) -> bool:
+        """The conclusion changed and nothing in the evidence accounts for it.
+
+        The strongest finding this can produce. Not "we cannot tell" but "the record
+        documents a change of outcome it cannot explain".
+        """
+        return self.conclusion_differs and not self.separable
+
     def render(self) -> str:
+        if self.unexplained_flip:
+            return "\n".join(
+                [
+                    f"Guarantee: {self.guarantee}",
+                    "Testable:  NO — and the outcome differs anyway",
+                    f"           {len(self.identical)} evidence fields, all identical",
+                    "           The record documents a change of outcome that nothing",
+                    "           in its own evidence accounts for.",
+                ]
+            )
         if self.separable:
             lines = [
                 f"Guarantee: {self.guarantee}",
@@ -82,13 +111,19 @@ class Discrimination:
             "distinguishing": self.distinguishing,
             "only_in_compliant": self.only_in_compliant,
             "only_in_violating": self.only_in_violating,
+            "conclusion_differs": self.conclusion_differs,
+            "unexplained_flip": self.unexplained_flip,
         }
 
 
 # Fields that differ between any two executions and say nothing about the guarantee.
-# Left out of the comparison because a record that "separates" two runs only by their
-# timestamps separates every pair of runs, and would report every guarantee testable.
-INCIDENTAL = ("recorded_at", "seq", "prev_hash", "run_id", "timestamp")
+# Left out because a record that "separates" two runs only by their timestamps
+# separates every pair, and would report every guarantee testable.
+INCIDENTAL = ("recorded_at", "seq", "prev_hash", "run_id", "timestamp", "ts", "decision_id")
+
+# The conclusion under examination. Excluded from evidential separation because it is
+# the thing being explained, not evidence for it.
+CONCLUSION = ("outcome",)
 
 
 def discriminates(
@@ -97,6 +132,7 @@ def discriminates(
     guarantee: str,
     *,
     ignore: tuple[str, ...] = INCIDENTAL,
+    conclusion: tuple[str, ...] = CONCLUSION,
 ) -> Discrimination:
     """Compare two captured records that differ only in whether `guarantee` holds."""
     left = _flatten(compliant)
@@ -105,9 +141,20 @@ def discriminates(
     def incidental(path: str) -> bool:
         return any(part in ignore for part in path.replace("[", ".").split("."))
 
+    def is_conclusion(path: str) -> bool:
+        """Top-level only. `candidates.items[0].outcome` is a per-candidate verdict —
+        evidence about how the decision was reached — not the conclusion itself.
+        Matching any path part named `outcome` swallowed those too, which discarded
+        real evidence in dhdr records where each candidate carries its own verdict."""
+        return path in conclusion
+
     keys = sorted(set(left) | set(right))
     result = Discrimination(guarantee=guarantee)
     for key in keys:
+        if is_conclusion(key):
+            if left.get(key) != right.get(key):
+                result.conclusion_differs = True
+            continue
         if incidental(key):
             continue
         if key in left and key not in right:

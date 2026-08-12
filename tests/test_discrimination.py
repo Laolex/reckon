@@ -52,7 +52,9 @@ def test_capturing_the_missing_field_makes_the_guarantee_testable():
 
     assert result.separable
     assert "policy.config_digest" in result.distinguishing
-    assert "outcome" in result.distinguishing
+    # `outcome` is the conclusion, not evidence for it — it is reported separately.
+    assert "outcome" not in result.distinguishing
+    assert result.conclusion_differs
     assert "Testable:  yes" in result.render()
 
 
@@ -97,3 +99,43 @@ def test_to_dict_round_trips_the_finding():
     assert payload["separable"] is True
     assert payload["guarantee"] == "g"
     assert payload["distinguishing"] == ["a"]
+
+
+def test_the_conclusion_does_not_count_as_evidence():
+    """Found by pointing this at dhdr's real admit/reject pairs.
+
+    A record holding nothing but an input and an outcome, with identical inputs and
+    opposite outcomes, proves nothing about why it flipped. The first version of this
+    module reported it separable — the exact failure the module exists to detect,
+    reintroduced inside the module.
+    """
+    a = {"input": {"x": 1}, "outcome": "admit"}
+    b = {"input": {"x": 1}, "outcome": "reject"}
+    r = discriminates(a, b, "the input decides the outcome")
+    assert not r.separable
+    assert r.conclusion_differs
+    assert r.unexplained_flip
+    assert "nothing" in r.render() and "accounts for" in r.render()
+
+
+def test_an_unexplained_flip_is_a_stronger_finding_than_untestable():
+    """Not 'we cannot tell' but 'the outcome changed and the record cannot say why'."""
+    same = {"input": {"x": 1}, "outcome": "admit"}
+    r = discriminates(same, dict(same), "g")
+    assert not r.separable and not r.conclusion_differs and not r.unexplained_flip
+
+
+def test_evidence_separation_survives_an_identical_conclusion():
+    a = {"policy": {"revision": "949"}, "outcome": "admit"}
+    b = {"policy": {"revision": "950"}, "outcome": "admit"}
+    r = discriminates(a, b, "the revision is captured")
+    assert r.separable
+    assert not r.conclusion_differs
+    assert r.distinguishing == ["policy.revision"]
+
+
+def test_decision_id_and_ts_are_incidental():
+    """Real dhdr records carry both, and neither says anything about a guarantee."""
+    a = {"decision_id": "d-1", "ts": "t0", "reads": [{"digest": "sha256:a"}]}
+    b = {"decision_id": "d-2", "ts": "t1", "reads": [{"digest": "sha256:a"}]}
+    assert not discriminates(a, b, "g").separable
