@@ -73,9 +73,9 @@ class RelationResult:
     def applicable(self) -> bool:
         """False when the relation could not be applied at all.
 
-        `SUPPORT_REMOVED` needs something cited to remove. A record that cites nothing
-        is not passing this relation; the relation simply has no purchase on it, and
-        reporting that as a pass would manufacture confidence.
+        A relation over the support set needs a support set. A record that cites
+        nothing is not passing these relations; they have no purchase on it, and
+        reporting that either way — pass or fail — manufactures a finding.
         """
         return self.observed is not None
 
@@ -85,10 +85,11 @@ class RelationResult:
 
     def render(self) -> str:
         if not self.applicable:
-            return f"n/a        {self.relation.value}: nothing cited to remove"
+            return f"n/a        {self.relation.value}: the record cites no evidence"
+        cited = f" [{self.removed[0]}]" if self.removed else ""
         if self.passed:
-            return f"held       {self.relation.value}"
-        return f"BROKEN     {self.relation.value}: {DIAGNOSIS[self.relation]}"
+            return f"held       {self.relation.value}{cited}"
+        return f"BROKEN     {self.relation.value}{cited}: {DIAGNOSIS[self.relation]}"
 
 
 @dataclass
@@ -97,9 +98,29 @@ class RelationReport:
 
     @property
     def bound(self) -> bool:
-        """Every applicable relation held. Inapplicable ones cannot make it true."""
+        """Every applicable relation held, AND the binding was actually tested.
+
+        SUPPORT_REMOVED is the relation that establishes binding: it is the only one
+        that removes something the record claims to depend on. Without it the others
+        are consistency checks, not evidence of a binding — and a record citing
+        nothing would otherwise be certified "bound to the evidence it cites" on the
+        strength of abstaining when handed no evidence, which is a sentence about a
+        record that cites none.
+        """
         applicable = [r for r in self.results if r.applicable]
-        return bool(applicable) and all(r.passed for r in applicable)
+        tested = any(
+            r.relation is Relation.SUPPORT_REMOVED and r.applicable for r in self.results
+        )
+        return tested and all(r.passed for r in applicable)
+
+    @property
+    def decorative(self) -> list[str]:
+        """Citations the outcome did not depend on, named individually."""
+        return [
+            r.removed[0]
+            for r in self.results
+            if r.relation is Relation.SUPPORT_REMOVED and r.applicable and not r.passed
+        ]
 
     @property
     def inapplicable(self) -> list[Relation]:
@@ -116,15 +137,30 @@ class RelationReport:
 def decisive_support(record: dict) -> tuple[str, ...]:
     """The evidence keys this record says it depended on.
 
-    Read from the record, not inferred. A policy resolution the record carries is
-    support; a source it lists is support. Nothing else is guessed at.
+    Read from the record, not inferred. A policy resolution is support; a captured
+    read is support; a listed source is support. Nothing else is guessed at.
+
+    `policy` is accepted as either a single resolution or a list of them, because
+    real records carry both shapes — RCDR permits one policy per decision and the
+    first version of this function assumed a list, iterated a dict, got its keys as
+    strings, and returned nothing. It reported "this record cites no evidence" when
+    the truth was "this reader cannot read this record", which are opposite claims.
     """
     keys: list[str] = []
-    for policy in record.get("policy", []) or []:
-        if isinstance(policy, dict) and "key" in policy:
-            keys.append(f"policy:{policy['key']}")
+
+    policy = record.get("policy")
+    resolutions = policy if isinstance(policy, list) else [policy] if policy else []
+    for resolution in resolutions:
+        if isinstance(resolution, dict) and "key" in resolution:
+            keys.append(f"policy:{resolution['key']}")
+
+    for read in record.get("reads", []) or []:
+        if isinstance(read, dict) and "key" in read:
+            keys.append(f"read:{read['key']}")
+
     for source in record.get("sources", []) or []:
         keys.append(f"source:{source}")
+
     return tuple(keys)
 
 
@@ -143,17 +179,29 @@ def run(
     support = decisive_support(record)
     report = RelationReport()
 
-    report.results.append(RelationResult(Relation.PARAPHRASE, decide(support)))
-    report.results.append(
-        RelationResult(Relation.DISTRACTOR, decide(tuple(support) + (distractor,)))
-    )
-
+    # Every relation that operates ON the support set is vacuous without one. Running
+    # them anyway makes the module accuse a record of a broken binding when the real
+    # fault is that this reader could not find its citations — a finding manufactured
+    # against a record it does not understand. Only NO_EVIDENCE stands on its own.
     if support:
-        without = support[1:]
+        report.results.append(RelationResult(Relation.PARAPHRASE, decide(support)))
         report.results.append(
-            RelationResult(Relation.SUPPORT_REMOVED, decide(without), removed=support[:1])
+            RelationResult(Relation.DISTRACTOR, decide(tuple(support) + (distractor,)))
         )
+        # Once per citation, not once for the first. Removing an arbitrary citation
+        # and reporting BROKEN when the outcome held accuses a record of a decorative
+        # binding on the strength of the wrong test — the outcome may be bound to a
+        # different citation entirely. Testing each names WHICH citations carried no
+        # weight, which is the finding worth having: a record citing evidence it did
+        # not use is the decorative-binding failure, stated precisely.
+        for i, cited in enumerate(support):
+            without = support[:i] + support[i + 1 :]
+            report.results.append(
+                RelationResult(Relation.SUPPORT_REMOVED, decide(without), removed=(cited,))
+            )
     else:
+        report.results.append(RelationResult(Relation.PARAPHRASE, None))
+        report.results.append(RelationResult(Relation.DISTRACTOR, None))
         report.results.append(RelationResult(Relation.SUPPORT_REMOVED, None))
 
     report.results.append(RelationResult(Relation.NO_EVIDENCE, decide(())))

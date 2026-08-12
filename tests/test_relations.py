@@ -22,7 +22,23 @@ RECORD = {
 
 
 def bound(evidence):
-    """Honest: holds while its first cited support is present, abstains without any."""
+    """Genuinely bound: depends on every citation, so removing any one moves it.
+
+    An earlier version of this fixture depended only on `policy:max_amount` while the
+    record cited three things. Once SUPPORT_REMOVED began testing each citation, the
+    fixture failed — correctly. It was itself an instance of the decorative binding
+    this module exists to detect, which is a good sign for the module and a bad one
+    for the original test.
+    """
+    if not evidence:
+        return Movement.ABSTAINED
+    cited = {"policy:max_amount", "policy:sanctioned", "source:ledger.csv"}
+    # Present, not counted: DISTRACTOR adds a fourth item and must not move it.
+    return Movement.HELD if cited <= set(evidence) else Movement.CHANGED
+
+
+def partly_decorative(evidence):
+    """Cites three, depends on one. The other two carried no weight."""
     if not evidence:
         return Movement.ABSTAINED
     return Movement.HELD if "policy:max_amount" in evidence else Movement.CHANGED
@@ -62,23 +78,55 @@ def test_a_decorative_binding_fails_on_support_removed():
     assert "not load-bearing" in report.render()
 
 
+def test_decorative_citations_are_named_individually():
+    """The finding worth having is WHICH citations carried no weight."""
+    report = run(partly_decorative, RECORD)
+    assert not report.bound
+    assert report.decorative == ["policy:sanctioned", "source:ledger.csv"]
+    assert "policy:sanctioned" in report.render()
+
+
 def test_paraphrase_and_distractor_must_not_move_the_outcome():
     def skittish(evidence):
-        return Movement.CHANGED if len(evidence) != 3 else Movement.HELD
+        """Moves when anything at all is added — a distractor must not do that."""
+        return Movement.CHANGED if len(evidence) > 3 else Movement.HELD
 
     report = run(skittish, RECORD)
     failed = {r.relation for r in report.results if not r.passed}
     assert Relation.DISTRACTOR in failed
 
 
-def test_a_record_citing_nothing_cannot_pass_support_removed():
-    """Inapplicable is not a pass. Reporting it as one manufactures confidence."""
+def test_a_record_citing_nothing_is_never_reported_as_bound():
+    """Found by running this against a real dhdr record, which cites via `reads`.
+
+    Every relation over the support set is vacuous without one, and reporting either
+    a pass or a failure manufactures a finding about a record the reader could not
+    read. The first version accused such records of a broken binding, then — once
+    guarded — certified them as bound on the strength of NO_EVIDENCE alone.
+    """
     report = run(bound, {"policy": [], "sources": []})
-    removed = next(r for r in report.results if r.relation is Relation.SUPPORT_REMOVED)
-    assert not removed.applicable
-    assert not removed.passed
-    assert Relation.SUPPORT_REMOVED in report.inapplicable
-    assert "nothing cited to remove" in report.render()
+    assert not report.bound
+    assert set(report.inapplicable) == {
+        Relation.PARAPHRASE,
+        Relation.DISTRACTOR,
+        Relation.SUPPORT_REMOVED,
+    }
+    assert "the record cites no evidence" in report.render()
+    assert "Outcome is bound" not in report.render()
+
+
+def test_reads_are_citations_too():
+    """A real dhdr record carries a single `policy` dict and cites through `reads`."""
+    from reckon.relations import decisive_support
+
+    real_shape = {
+        "policy": {"key": "max_safe_consumers", "resolved_value": 0},
+        "reads": [{"key": "downstream_consumers", "value_digest": "sha256:abc"}],
+    }
+    assert decisive_support(real_shape) == (
+        "policy:max_safe_consumers",
+        "read:downstream_consumers",
+    )
 
 
 def test_bound_requires_at_least_one_applicable_relation():
