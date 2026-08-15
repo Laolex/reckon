@@ -21,11 +21,6 @@ from .sink import JsonlSink
 from .verify import CLASS_NAMES
 
 
-def load(path: str) -> list[dict]:
-    lines = Path(path).read_text(encoding="utf-8").splitlines()
-    return [json.loads(line) for line in lines if line.strip()]
-
-
 def _commitment_arguments(parser: argparse.ArgumentParser) -> None:
     """The full commitment payload. `seal` and `reveal` take the same fields because
     the agent must hold the payload between the two halves — the ledger never does."""
@@ -180,7 +175,7 @@ def main(argv: list[str] | None = None) -> int:
             print(credential.integrity.render())
         return 0 if credential.integrity.intact else 1
 
-    records = load(args.path)
+    records = read(args.path)
 
     if args.command == "verify":
         report = verify_run(records, requested=args.requested)
