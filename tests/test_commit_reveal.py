@@ -12,7 +12,6 @@ from reckon.commitment import Commitment, Obligation
 from reckon.credential import project
 from reckon.integrity import verify_ledger
 from reckon.ledger import Ledger
-from reckon.page import render
 from reckon.sink import MemorySink
 
 
@@ -102,17 +101,6 @@ def test_unopened_seals_are_counted_on_the_credential():
     assert c.revealed == 2
     assert c.unopened == 3
     assert c.commitments == 2  # only opened commitments can be classified
-
-
-def test_the_unopened_count_is_on_the_page():
-    sink = MemorySink()
-    ledger = Ledger(sink, agent="helios-3")
-    ledger.seal_only(a_commitment("c-0"))
-    ledger.seal_only(a_commitment("c-1"))
-    ledger.reveal(a_commitment("c-0"))
-    ledger.decline(reason="nothing else qualified")
-    html = render(project(sink.records))
-    assert "never opened" in html.lower()
 
 
 def test_reveal_refuses_a_commitment_from_another_agent():

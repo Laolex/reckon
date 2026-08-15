@@ -136,10 +136,6 @@ def main(argv: list[str] | None = None) -> int:
     site_cmd.add_argument("--ledgers", required=True, help="directory of *.jsonl ledgers")
     site_cmd.add_argument("--out", required=True, help="directory to write the site into")
 
-    serve_cmd = sub.add_parser("serve", help="serve the credential page locally")
-    serve_cmd.add_argument("--ledger", required=True)
-    serve_cmd.add_argument("--port", type=int, default=8799)
-
     args = parser.parse_args(argv)
 
     if args.command in ("commit", "seal", "reveal"):
@@ -174,14 +170,6 @@ def main(argv: list[str] | None = None) -> int:
 
         written = build_site(args.ledgers, args.out)
         print(f"wrote {len(written)} files to {args.out}")
-        return 0
-
-    if args.command == "serve":
-        # Imported here so the module attribute is what gets called, which is what
-        # a monkeypatch in the tests can replace.
-        from . import page
-
-        page.serve(args.ledger, port=args.port)
         return 0
 
     if args.command == "credential":
