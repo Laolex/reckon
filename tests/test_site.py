@@ -62,13 +62,18 @@ def test_every_expected_page_is_written(ledgers, tmp_path):
     out = build_site(ledgers, tmp_path)
     for rel in [
         "index.html", "open.html", "verify.html",
-        "launch.html", "feed.html", "standings.html",
         "assets/site.css", "assets/verify.js", "assets/verify-ui.js",
         "a/helios-3/index.html", "a/helios-3/ledger.html",
         "a/helios-3/helios-3.jsonl", "a/helios-3/c/c-0.html",
         "a/selene-1/index.html",
     ]:
         assert (out / rel).exists(), rel
+
+
+def test_no_unbacked_product_pages_are_written(ledgers, tmp_path):
+    out = build_site(ledgers, tmp_path)
+    for rel in ("launch.html", "feed.html", "standings.html"):
+        assert not (out / rel).exists(), rel
 
 
 def test_the_published_raw_ledger_still_verifies(ledgers, tmp_path):
@@ -147,15 +152,6 @@ def test_the_registry_publishes_no_counts_for_a_broken_ledger(ledgers, tmp_path)
     assert not re.search(r">\s*\d+\s*<", rows["selene-1"]), rows["selene-1"]
     assert "Record intact" in rows["helios-3"]
     assert re.search(r">\s*\d+\s*<", rows["helios-3"]), rows["helios-3"]
-
-
-def test_stub_pages_are_marked_and_carry_no_unlabelled_figures(ledgers, tmp_path):
-    out = build_site(ledgers, tmp_path)
-    for rel in ("launch.html", "feed.html", "standings.html"):
-        page = read(out, rel)
-        assert "Not built" in page, rel
-        assert "Blocked on:" in page, rel
-        assert "chip-sample" in page or "status-ok" in page, rel
 
 
 def test_the_commitment_page_states_whether_it_was_sealed_first(ledgers, tmp_path):

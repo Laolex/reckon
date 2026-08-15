@@ -44,12 +44,7 @@ NAV = [
     ("", "Registry", "index.html"),
     ("open", "Open board", "open.html"),
     ("verify", "Verify", "verify.html"),
-    ("launch", "Launch", "launch.html"),
-    ("feed", "Feed", "feed.html"),
-    ("standings", "Standings", "standings.html"),
 ]
-
-STUB_PAGES = {"launch", "feed", "standings"}
 
 
 # --------------------------------------------------------------------------- css
@@ -115,8 +110,6 @@ a:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid va
 .rail nav a:hover{color:var(--ink);background:var(--raised)}
 .rail nav a[aria-current]{color:var(--brass);border-left-color:var(--brass);
   background:var(--raised)}
-.rail nav a .wip{font-size:.6rem;letter-spacing:.1em;color:var(--dim);
-  border:1px solid var(--hair);padding:0 .25rem;border-radius:2px}
 
 /* ---- main ---- */
 main{padding:2rem 1.25rem 5rem;min-width:0}
@@ -180,8 +173,6 @@ td a:hover{text-decoration:underline}
 .chip-luck{color:var(--brass);border-color:var(--brass)}
 .chip-failed{color:var(--oxide);border-color:var(--oxide)}
 .chip-open{color:var(--muted)}
-.chip-sample{color:var(--brass);border-color:var(--brass-dim);
-  background:color-mix(in srgb,var(--brass) 12%,transparent)}
 
 /* ---- the chain spine ---- */
 .chain{list-style:none;margin:0;padding:0;display:flex;flex-direction:column}
@@ -219,16 +210,6 @@ td a:hover{text-decoration:underline}
 .broken pre{margin:0;font-family:var(--mono);font-size:.76rem;overflow-x:auto;
   white-space:pre-wrap;color:var(--ink)}
 .note{font-size:.86rem;color:var(--muted);max-width:60ch}
-
-.stub{border:1px solid var(--brass-dim);border-radius:2px;overflow:hidden}
-.stub .band{background:repeating-linear-gradient(135deg,
-  color-mix(in srgb,var(--brass) 16%,transparent) 0 10px,transparent 10px 20px);
-  padding:.85rem 1.1rem;border-bottom:1px solid var(--brass-dim);
-  font-family:var(--mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
-  color:var(--brass);font-weight:600}
-.stub .inner{padding:1.1rem;display:flex;flex-direction:column;gap:.7rem}
-.stub .inner p{font-size:.88rem;color:var(--muted);max-width:60ch}
-.stub .inner strong{color:var(--ink)}
 
 /* ---- verify tool ---- */
 .tool{display:flex;flex-direction:column;gap:.9rem}
@@ -323,11 +304,10 @@ def _kv(pairs: list[tuple[str, str]]) -> str:
 
 def layout(title: str, active: str, body: str, root: str) -> str:
     nav = "".join(
-        '<a href="{href}"{cur}>{label}{wip}</a>'.format(
+        '<a href="{href}"{cur}>{label}</a>'.format(
             href=_e(root + href),
             cur=' aria-current="page"' if key == active else "",
             label=_e(label),
-            wip='<span class="wip">stub</span>' if key in STUB_PAGES else "",
         )
         for key, label, href in NAV
     )
@@ -797,129 +777,6 @@ def verify_page(sample_agent: str | None, sample_path: str | None) -> str:
 """
 
 
-# ------------------------------------------------------------------------ stubs
-
-def _stub(title: str, eyebrow: str, depends: str, lede: str, body: str) -> str:
-    return f"""
-<header>
-  <div class="eyebrow">{_e(eyebrow)}</div>
-  <h1>{_e(title)}</h1>
-</header>
-<div class="stub">
-  <div class="band">Not built — shape only</div>
-  <div class="inner">
-    <p>{lede}</p>
-    <p><strong>Blocked on:</strong> {_e(depends)}</p>
-    <p>Every figure below is invented, marked <span class="chip chip-sample">sample</span>,
-    and backed by nothing. It is here so the layout can be argued about before the
-    machinery exists — not to suggest the machinery exists.</p>
-  </div>
-</div>
-{body}
-"""
-
-
-def launch_page() -> str:
-    body = """
-<section>
-  <h2>What minting would do</h2>
-  <div class="prose">
-    <p>An agent cannot enter the registry without binding a record locator at genesis,
-    written by the launch contract rather than by us. That is the whole primitive: no
-    retroactive track record, no chosen window, no second ledger if the first goes
-    badly. The fee buys the recording, framed as gas for the agent's memory — never a
-    subscription, because an unpaid record must go cold rather than disappear.</p>
-  </div>
-  <div class="scroll"><table>
-    <thead><tr><th>Step</th><th>Where it happens</th><th>State</th></tr></thead>
-    <tbody>
-      <tr><td>Name and genesis</td><td>Launch contract</td><td>Not built</td></tr>
-      <tr><td>Bind record locator</td><td>Launch contract</td><td>Not built</td></tr>
-      <tr><td>First seal</td><td>Ledger — <em>works today</em></td>
-        <td><span class="status status-ok">Built</span></td></tr>
-      <tr><td>Anchor the tip</td><td>Whichever chain the launch used</td>
-        <td>Not built</td></tr>
-    </tbody>
-  </table></div>
-  <p class="note">Chain-agnostic by design. Records live off-chain and anchor to
-  whatever chain the launch happened on, so the registry's ceiling is not one
-  network's ceiling.</p>
-</section>
-"""
-    return _stub(
-        "Launch an agent", "Launch",
-        "the launch contract (EVM + Solana), and chain funds for deployment",
-        "Wallet connect, naming, and the genesis mint would live here.",
-        body,
-    )
-
-
-def feed_page() -> str:
-    body = """
-<section>
-  <h2>Why a feed is possible at all</h2>
-  <div class="prose">
-    <p>Because sealing and disclosing are separate events. A commitment can be sealed
-    now and opened to subscribers before it opens to everyone, without weakening the
-    record — the seal already fixed the terms, so early access changes who can read
-    them and when, not what they say.</p>
-    <p>The obvious attack is to seal many and open only the winners. It is closed by
-    publishing the count of seals never opened, which the registry already does on
-    every credential page.</p>
-  </div>
-  <div class="scroll"><table>
-    <thead><tr><th>Agent</th><th>Sealed</th><th>Opens to subscribers</th>
-    <th>Opens publicly</th></tr></thead>
-    <tbody>
-      <tr><td>—<span class="chip chip-sample">sample</span></td><td class="num">3 days ago</td>
-        <td class="num">now</td><td class="num">in 4 days</td></tr>
-      <tr><td>—<span class="chip chip-sample">sample</span></td><td class="num">1 day ago</td>
-        <td class="num">in 2 days</td><td class="num">in 9 days</td></tr>
-    </tbody>
-  </table></div>
-</section>
-"""
-    return _stub(
-        "Early access feed", "Feed",
-        "payments, and subscribers — a two-sided market that does not exist yet",
-        "Paid early access to seals before they open publicly.",
-        body,
-    )
-
-
-def standings_page() -> str:
-    body = """
-<section>
-  <h2>What a season would rank</h2>
-  <div class="prose">
-    <p>Not a hit rate. Ranking on outcomes alone rewards the luck column, and ranking
-    on a blended score smuggles a judgement about how much a cryptographic receipt
-    outweighs a self-attestation. A season would rank on obligations met with
-    externally witnessed evidence, and would publish the unopened-seal count beside
-    every entry.</p>
-    <p>It is also the surface most likely to be wrong if built early: standings shape
-    behaviour, and shaping behaviour before the record layer is trusted is how a
-    credential turns into a game.</p>
-  </div>
-  <div class="scroll"><table>
-    <thead><tr><th>#</th><th>Agent</th><th class="right">Earned</th>
-    <th class="right">Luck</th><th class="right">Unopened</th></tr></thead>
-    <tbody>
-      <tr><td class="num">1</td><td>—<span class="chip chip-sample">sample</span></td>
-        <td class="right num">—</td><td class="right num">—</td>
-        <td class="right num">—</td></tr>
-    </tbody>
-  </table></div>
-</section>
-"""
-    return _stub(
-        "Standings", "Standings",
-        "enough records to rank, and a decision about what a season measures",
-        "Seasons and leaderboards across the registry.",
-        body,
-    )
-
-
 # -------------------------------------------------------------------- the build
 
 VERIFY_UI = """
@@ -1059,11 +916,6 @@ def build(ledger_dir: str, out_dir: str) -> list[Path]:
 
     write("index.html", layout("Reckon — registry", "", registry_page(bundles), ""))
     write("open.html", layout("Open board — Reckon", "open", open_page(bundles), ""))
-    write("launch.html", layout("Launch — Reckon", "launch", launch_page(), ""))
-    write("feed.html", layout("Feed — Reckon", "feed", feed_page(), ""))
-    write("standings.html",
-          layout("Standings — Reckon", "standings", standings_page(), ""))
-
     first = bundles[0] if bundles else None
     write("verify.html", layout(
         "Verify — Reckon", "verify",
