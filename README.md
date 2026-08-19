@@ -8,6 +8,36 @@ question you want to ask that record is not "what happened" — it is *"would th
 the other way under a different policy?"* Reckon exists because that question is usually
 unanswerable, and because nothing in the record tells you it is unanswerable.
 
+## The one shot
+
+Real OPA v1.18.2 probe output, both columns computed from the same evidence:
+
+```
+──────────────────────────────────────────────────────────────────────────
+  OPA v1.18.2 — two decisions, one input, and what each record can support
+──────────────────────────────────────────────────────────────────────────
+                          AS OPA RECORDED IT          WITH RECKON
+
+  input                   raw_edge=0.002              raw_edge=0.002
+  bundle revision         policy-v2-code-only         policy-v2-code-only
+  engine version          identical                   identical
+  outcome                 trade / skip  ← opposite    admit / reject  ← opposite
+  threshold in force      not in the record           0.0015 / 0.0025
+  where it came from      not in the record           bundled / runtime_override
+  runs distinguishable?   no — byte-identical         yes — 46e106a3aa9b… vs 7c6466eea414…
+
+  verifier's answer       REFUSED — no class          C2 (Loosening Replay)
+──────────────────────────────────────────────────────────────────────────
+```
+
+```bash
+python -m demo.frame
+```
+
+The left column is a complete, correct decision log from a sound engine. The frame
+raises `SystemExit` rather than printing if the verifier ever stops answering `none`
+on the left or `C2` on the right, so it cannot show a result it did not get.
+
 ## The finding
 
 Five systems were probed: OPA, LangGraph, Temporal, and the decision logs of a live
