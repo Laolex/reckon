@@ -106,3 +106,38 @@ python experiments/helix_vertical_slice.py
 
 Its JSON result, canonical fixture, and standalone HTML proof are written under
 `.artifacts/` and excluded from version control.
+
+## Real-caller DHDR corpus
+
+The next pass used all 40 certificates retained by DataHub Decision Records after live calls
+through DataHub MCP. Each certificate embeds its canonical RCDR record. The archive contains 20
+`live-before` admits and 20 `live-after` rejects, all unique and all C2. It does not contain an
+explicit pair identifier, so the evaluator does not infer one from adjacent timestamps. A
+candidate is relevant when recorded action, policy, predicate, compared type, and execution path
+match while outcome differs.
+
+The deterministic projection contains 82 nodes and 120 edges. A clean import inserted all of
+them; the immediate second import inserted none. During the first attempted 40-record import,
+Helix exposed optimistic transaction conflicts while its asynchronous secondary indexes were
+settling. The optional adapter now retries only that named conflict with a bounded backoff and
+continues to raise every other Helix error.
+
+Unconstrained retrieval exposed the product-floor problem: the other same-outcome decisions
+clustered ahead of the opposite-outcome family. Median first-relevant rank was 20 for BM25,
+lexical vector search, and hybrid RRF. BM25 reached R@1 0.05; vector and hybrid reached R@1 0.
+All three reached R@20 1.0.
+
+Applying exact recorded constraints before ranking changed the candidate set rather than asking
+similarity to discover structure. With action ID, policy key, predicate ID, compared type,
+execution path, and opposite outcome constrained, every query had a structurally relevant result
+at rank 1 through BM25, vector, and hybrid retrieval. This is a capability of this homogeneous
+corpus and exact filter, not evidence of broad retrieval quality.
+
+All 20 canonical comparisons named `policy.resolution.revision` as the first recorded
+divergence; the proof pages also show the changed compared value and lineage read. The source
+records remained C2, and their verification digest remained
+`sha256:e7c8a7471e62e6193bc24d56726549cdeb924b1bc132f20acd23308ed88e9182`
+before and after indexing. Deleting the container and rebuilding from the certificates produced
+the same projection digest,
+`sha256:524c0316c244d36ad76737ff5c302337aa9dd442479bec54ad1d765ee219dc17`,
+with the same 82 nodes, 120 edges, retrieval result, and verification result.

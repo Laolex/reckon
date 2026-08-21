@@ -6,6 +6,7 @@ JSONL format retain zero runtime dependencies and do not consult this index.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 from typing import Any, Mapping, Sequence
 
@@ -132,6 +133,17 @@ class HelixProjectionIndex:
         )
         return bool(_rows(self.client.query(h.QueryRequest.read(request)), "matches"))
 
+    def _write(self, request: Any, *, attempts: int = 20) -> Any:
+        """Retry optimistic transaction conflicts while asynchronous indexes settle."""
+        for attempt in range(attempts):
+            try:
+                return self.client.query(self.h.QueryRequest.write(request))
+            except self.h.HelixError as error:
+                if "transaction conflict" not in str(error).lower() or attempt == attempts - 1:
+                    raise
+                time.sleep(min(0.05 * (attempt + 1), 0.5))
+        raise AssertionError("unreachable")
+
     def import_projection(
         self,
         projection: GraphProjection,
@@ -153,7 +165,7 @@ class HelixProjectionIndex:
                 .var_as("created", h.g().add_n(node.label, properties))
                 .returning(["created"])
             )
-            self.client.query(h.QueryRequest.write(request))
+            self._write(request)
             inserted_nodes += 1
 
         for edge in projection.edges:
@@ -182,7 +194,7 @@ class HelixProjectionIndex:
                 )
                 .returning(["created"])
             )
-            self.client.query(h.QueryRequest.write(request))
+            self._write(request)
             inserted_edges += 1
         return ImportReceipt(inserted_nodes, skipped_nodes, inserted_edges, skipped_edges)
 
@@ -200,14 +212,42 @@ class HelixProjectionIndex:
             for rank, row in enumerate(_rows(response, "hits"), start=1)
         ]
 
-    def text_search(self, query: str, *, limit: int = 20) -> list[CandidateHit]:
+    def _decision_scope(
+        self,
+        *,
+        filters: Mapping[str, Any] | None,
+        exclude_outcome: str | None,
+    ) -> Any:
+        h = self.h
+        predicates = [
+            h.Predicate.eq(property_name, value)
+            for property_name, value in (filters or {}).items()
+        ]
+        if exclude_outcome is not None:
+            predicates.append(h.Predicate.neq("outcome", exclude_outcome))
+        traversal = h.g().n_with_label("Decision")
+        if len(predicates) == 1:
+            return traversal.where(predicates[0])
+        if predicates:
+            return traversal.where(h.Predicate.and_(predicates))
+        return traversal
+
+    def text_search(
+        self,
+        query: str,
+        *,
+        limit: int = 20,
+        filters: Mapping[str, Any] | None = None,
+        exclude_outcome: str | None = None,
+    ) -> list[CandidateHit]:
         h = self.h
         request = (
             h.read_batch()
             .var_as(
                 "hits",
-                h.g()
-                .n_with_label("Decision")
+                self._decision_scope(
+                    filters=filters, exclude_outcome=exclude_outcome
+                )
                 .text_search("Decision", "search_text", query, limit)
                 .project(
                     [
@@ -223,14 +263,22 @@ class HelixProjectionIndex:
         )
         return self._hits(self.client.query(h.QueryRequest.read(request)), vector=False)
 
-    def vector_search(self, embedding: Sequence[float], *, limit: int = 20) -> list[CandidateHit]:
+    def vector_search(
+        self,
+        embedding: Sequence[float],
+        *,
+        limit: int = 20,
+        filters: Mapping[str, Any] | None = None,
+        exclude_outcome: str | None = None,
+    ) -> list[CandidateHit]:
         h = self.h
         request = (
             h.read_batch()
             .var_as(
                 "hits",
-                h.g()
-                .n_with_label("Decision")
+                self._decision_scope(
+                    filters=filters, exclude_outcome=exclude_outcome
+                )
                 .vector_search("Decision", "embedding", list(embedding), limit)
                 .project(
                     [

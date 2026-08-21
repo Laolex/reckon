@@ -132,6 +132,19 @@ For large collections, install `reckon-rcdr[helix-evaluation]` and use
 deterministic projections and source references; Reckon reopens canonical JSONL for every
 comparison. Deleting or rebuilding the index cannot change verification.
 
+The retained DHDR certificate corpus exercises that boundary with records emitted by a real
+caller against DataHub MCP. With a disposable Helix instance on port 6970:
+
+```bash
+python experiments/dhdr_corpus.py \
+  --certs /opt/datahub-decision-records/docs/certs \
+  --out .artifacts/dhdr-corpus
+```
+
+The runner preserves an unconstrained retrieval baseline, then applies exact recorded
+action/policy/predicate/execution-path constraints before ranking opposite-outcome candidates.
+Its generated results and proof pages are excluded from version control.
+
 ## The emitter refuses to guess
 
 Comparing against a policy that was never registered raises. Closing a decision without an

@@ -58,6 +58,7 @@ class DecisionProjection:
     compared_value: str
     compared_type: str
     candidates_completeness: str
+    execution_path: str
     capability_class: str
     read_keys: tuple[str, ...]
     write_keys: tuple[str, ...]
@@ -91,6 +92,7 @@ def project_record(record: dict[str, Any], *, source_ref: str) -> DecisionProjec
         _get(record, "policy.resolution.revision"),
         _get(record, "compared.value"),
         _get(record, "compared.type"),
+        _get(record, "execution.path_digest"),
         *read_keys,
         *write_keys,
     )
@@ -114,6 +116,7 @@ def project_record(record: dict[str, Any], *, source_ref: str) -> DecisionProjec
         compared_value=_text(_get(record, "compared.value")),
         compared_type=_text(_get(record, "compared.type")),
         candidates_completeness=_text(_get(record, "candidates.completeness")),
+        execution_path=_text(_get(record, "execution.path_digest")),
         capability_class=capability,
         read_keys=read_keys,
         write_keys=write_keys,
