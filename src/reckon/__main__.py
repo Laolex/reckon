@@ -96,6 +96,17 @@ def main(argv: list[str] | None = None) -> int:
     boundary_cmd.add_argument("--decision", required=True, help="the decision to flip")
     boundary_cmd.add_argument("--json", action="store_true")
 
+    compare_cmd = sub.add_parser(
+        "compare", help="compare two canonical RCDR decisions and render their evidence"
+    )
+    compare_cmd.add_argument("left", help="left RCDR .jsonl run")
+    compare_cmd.add_argument("right", help="right RCDR .jsonl run")
+    compare_cmd.add_argument("--left-decision", help="decision id; defaults to the only record")
+    compare_cmd.add_argument("--right-decision", help="decision id; defaults to the only record")
+    compare_cmd.add_argument("--guarantee", required=True, help="the guarantee under review")
+    compare_cmd.add_argument("--html-out", help="write a standalone proof screen")
+    compare_cmd.add_argument("--json", action="store_true", help="machine-readable output")
+
     commit_cmd = sub.add_parser("commit", help="write a commitment in the clear")
     _commitment_arguments(commit_cmd)
 
@@ -174,6 +185,38 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(credential.integrity.render())
         return 0 if credential.integrity.intact else 1
+
+    if args.command == "compare":
+        from .investigate import compare_records
+
+        left_run = read(args.left)
+        right_run = read(args.right)
+
+        def choose(records: list[dict], requested: str | None, side: str) -> dict:
+            if requested:
+                for record in records:
+                    if record.get("decision_id") == requested:
+                        return record
+                parser.error(f"{side} decision {requested!r} is not in the run")
+            if len(records) != 1:
+                parser.error(
+                    f"{side} run contains {len(records)} decisions; pass --{side}-decision"
+                )
+            return records[0]
+
+        comparison = compare_records(
+            choose(left_run, args.left_decision, "left"),
+            choose(right_run, args.right_decision, "right"),
+            guarantee=args.guarantee,
+            left_run=left_run,
+            right_run=right_run,
+        )
+        if args.html_out:
+            from .investigation_site import write
+
+            write(comparison, args.html_out)
+        print(json.dumps(comparison.to_dict(), indent=2) if args.json else comparison.render())
+        return 0
 
     records = read(args.path)
 

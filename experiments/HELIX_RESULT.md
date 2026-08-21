@@ -79,3 +79,30 @@ python experiments/helix_retrieval.py
 
 Machine-readable output is written to `.artifacts/helix-results.json` and excluded
 from version control.
+
+## Canonical vertical slice
+
+The follow-on implementation removes the pre-labelled `RecordedRelation` nodes from the
+product path. `project_graph` now derives `Decision`, `PolicyResolution`, `Predicate`, and
+`StateKey` nodes directly from canonical RCDR fields. Its edges record policy resolution,
+predicate evaluation, reads, writes, and state coupling. Every node and edge has a
+deterministic projection ID.
+
+Against a fresh disposable Helix instance, the vertical slice inserted 6 nodes and 9 edges.
+Repeating the same import inserted zero nodes and zero edges. BM25 ranked the rejecting
+decision first for `reject transfer amount policy limit`; vector search ranked the exact
+query decision first. The sidecar was then deleted, recreated empty, and rebuilt to the same
+6-node, 9-edge projection. Reckon's run report was C2 for all three decisions before and
+after both indexing operations.
+
+The generated proof screen compares canonical records, identifies `compared.value` as the
+first evidence divergence, shows each record's C2 capability class, and marks the
+`payment-low --account.risk--> payment-high` edge as the point where C3 evidence ends and
+hypothesis begins. Reproduce this narrower test with:
+
+```bash
+python experiments/helix_vertical_slice.py
+```
+
+Its JSON result, canonical fixture, and standalone HTML proof are written under
+`.artifacts/` and excluded from version control.

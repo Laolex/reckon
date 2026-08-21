@@ -119,7 +119,16 @@ class Discrimination:
 # Fields that differ between any two executions and say nothing about the guarantee.
 # Left out because a record that "separates" two runs only by their timestamps
 # separates every pair, and would report every guarantee testable.
-INCIDENTAL = ("recorded_at", "seq", "prev_hash", "run_id", "timestamp", "ts", "decision_id")
+INCIDENTAL = (
+    "recorded_at",
+    "seq",
+    "sequence",
+    "prev_hash",
+    "run_id",
+    "timestamp",
+    "ts",
+    "decision_id",
+)
 
 # The conclusion under examination. Excluded from evidential separation because it is
 # the thing being explained, not evidence for it.
