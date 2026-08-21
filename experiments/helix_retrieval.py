@@ -481,6 +481,10 @@ def evaluate(
     vector_ranks: list[int | None] = []
     text_ranks: list[int | None] = []
     hybrid_ranks: list[int | None] = []
+    ranks_by_relation: dict[str, dict[str, list[int | None]]] = {
+        name: {"vector": [], "bm25": [], "hybrid_rrf": []}
+        for name in ("paraphrase", "contradiction")
+    }
     latencies: dict[str, list[float]] = {"vector": [], "bm25": [], "graph": []}
     examples: list[dict[str, Any]] = []
 
@@ -500,6 +504,9 @@ def evaluate(
         vector_ranks.append(vector_rank)
         text_ranks.append(text_rank)
         hybrid_ranks.append(hybrid_rank)
+        ranks_by_relation[relation.relation]["vector"].append(vector_rank)
+        ranks_by_relation[relation.relation]["bm25"].append(text_rank)
+        ranks_by_relation[relation.relation]["hybrid_rrf"].append(hybrid_rank)
 
         started = time.perf_counter()
         graph = recorded_partner(client, relation.a_id)
@@ -547,6 +554,13 @@ def evaluate(
         "vector": summarize(vector_ranks, (1, 5, 10, limit)),
         "bm25": summarize(text_ranks, (1, 5, 10, limit)),
         "hybrid_rrf": summarize(hybrid_ranks, (1, 5, 10, limit * 2)),
+        "by_relation": {
+            relation: {
+                method: summarize(method_ranks, (1, 5, 10, limit * 2))
+                for method, method_ranks in relation_ranks.items()
+            }
+            for relation, relation_ranks in ranks_by_relation.items()
+        },
         "graph_validation": {
             "validated": len(relations),
             "relation_mismatches": 0,
