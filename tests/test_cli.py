@@ -21,6 +21,7 @@ def write_run(tmp_path, exhaustive=True):
     sys.path.insert(0, str(ROOT / "src"))
     from reckon import JsonlSink, Recorder
 
+    tmp_path.mkdir(parents=True, exist_ok=True)
     path = tmp_path / "run.jsonl"
     rec = Recorder(sink=JsonlSink(path), run_id="r-1", emitter="test")
     with rec.decision(action="transfer", pure=True) as d:
@@ -67,3 +68,28 @@ def test_cli_reports_the_boundary_for_a_decision(tmp_path):
     result = run_cli("boundary", str(path), "--decision", decision_id)
     assert result.returncode == 0
     assert "Hypothesis" in result.stdout
+
+
+def test_cli_compares_two_runs_and_writes_proof_screen(tmp_path):
+    left = write_run(tmp_path / "left")
+    right = write_run(tmp_path / "right")
+    record = json.loads(right.read_text().splitlines()[0])
+    record["compared"]["value"] = 200
+    record["outcome"] = "reject"
+    right.write_text(json.dumps(record) + "\n")
+    proof = tmp_path / "proof" / "index.html"
+
+    result = run_cli(
+        "compare",
+        str(left),
+        str(right),
+        "--guarantee",
+        "transfer remains under limit",
+        "--html-out",
+        str(proof),
+        "--json",
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(result.stdout)["first_evidence_divergence"] == "compared.value"
+    assert "canonical RCDR records" in proof.read_text()

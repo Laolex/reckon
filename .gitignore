@@ -4,3 +4,4 @@ __pycache__/
 *.jsonl
 dist/
 build/
+.artifacts/

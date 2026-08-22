@@ -113,11 +113,37 @@ Available: C2
 Decisions: C2 x1
 
 $ python -m reckon boundary run.jsonl --decision d-4f21a0c9e113
+
+$ python -m reckon compare admitted.jsonl rejected.jsonl \
+    --guarantee "transfer remains below the resolved policy limit" \
+    --html-out investigation.html
 ```
 
 Exit code is non-zero when the requested class is unsupported, so it can gate a pipeline. A
 build should be able to fail because the evidence needed to re-adjudicate a decision was
 never captured.
+
+`compare` names the first captured evidence divergence, reports each record's capability
+class, and renders the C3 boundary when run context is available. The top-level outcome is
+the conclusion under review and never counts as evidence that explains itself.
+
+For large collections, install `reckon-rcdr[helix-evaluation]` and use
+`reckon.helix_index.HelixProjectionIndex` as an optional BM25/vector read model. Helix stores
+deterministic projections and source references; Reckon reopens canonical JSONL for every
+comparison. Deleting or rebuilding the index cannot change verification.
+
+The retained DHDR certificate corpus exercises that boundary with records emitted by a real
+caller against DataHub MCP. With a disposable Helix instance on port 6970:
+
+```bash
+python experiments/dhdr_corpus.py \
+  --certs /opt/datahub-decision-records/docs/certs \
+  --out .artifacts/dhdr-corpus
+```
+
+The runner preserves an unconstrained retrieval baseline, then applies exact recorded
+action/policy/predicate/execution-path constraints before ranking opposite-outcome candidates.
+Its generated results and proof pages are excluded from version control.
 
 ## The emitter refuses to guess
 
@@ -135,7 +161,7 @@ failure this whole project is named after.
 |---|---|
 | `docs/RCDR-v0.1.md` | the record format — the normative document |
 | `docs/ARGUMENT.md` | the argument: thesis, evidence, novelty, non-goals |
-| `src/reckon/` | emitter, verifier, run-level verifier, CLI |
+| `src/reckon/` | emitter, verifier, investigation projection and proof surface, CLI |
 | `demo/` | three before/after arcs over real probe artifacts, plus the ablation |
 | `demo/ABLATION.md` | which fields are load-bearing — generated, not asserted |
 | `tests/` | every assertion traces to a requirement in the spec |
