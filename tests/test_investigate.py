@@ -120,3 +120,34 @@ def test_proof_screen_escapes_record_values_and_marks_c3_boundary():
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in page
     assert "safe &lt; transfer" in page
     assert "C3 is never certified" in page
+
+
+def test_proof_screen_stages_the_argument_as_accessible_evidence_ui():
+    left = decision("d-left", value=4200, outcome="admit")
+    right = decision("d-right", value=6200, outcome="reject")
+    result = compare_records(left, right, guarantee="transfer remains under policy limit")
+
+    page = render(result)
+
+    assert 'aria-label="Verification sequence"' in page
+    assert "Candidate nominated" in page
+    assert "Canonical records reopened" in page
+    assert "Capability boundary enforced" in page
+    assert 'aria-label="Evidence scope"' in page
+    assert "Evidence supports" in page
+    assert "Evidence does not support" in page
+    assert '<table class="evidence-table">' in page
+    assert '<th scope="row">' in page
+
+
+def test_unexplained_flip_is_marked_for_attention_without_inventing_evidence():
+    left = decision("d-left", outcome="admit")
+    right = decision("d-right", outcome="reject")
+    right["candidates"]["items"][0]["outcome"] = "admit"
+    result = compare_records(left, right, guarantee="same evidence produces same result")
+
+    page = render(result)
+
+    assert "No evidence difference found" in page
+    assert '<span class="step-state attention">attention</span>' in page
+    assert "no captured field explains it" in page
